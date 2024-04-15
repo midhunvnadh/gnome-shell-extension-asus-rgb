@@ -2,9 +2,10 @@
     "name" : "RGB",
     "description" : "Rgb control for asus laptops",
     "shell-version" : [
-        "3.36"
+        "45",
+        "46"
     ],
     "url" : "",
     "uuid" : "rgb@drunkcj.com",
-    "version" : 1.0
+    "version" : 1.1
 }

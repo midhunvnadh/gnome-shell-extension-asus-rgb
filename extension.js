@@ -1,127 +1,102 @@
-const Main = imports.ui.main;
-const St = imports.gi.St;
-const GObject = imports.gi.GObject;
-const Gio = imports.gi.Gio;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-const GLib = imports.gi.GLib;
-let myPopup;
+import St from "gi://St";
+import GObject from "gi://GObject";
+import Gio from "gi://Gio";
 
-const MyPopup = GObject.registerClass(
-class MyPopup extends PanelMenu.Button {
+import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
+import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
+import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
+import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
-  _init () {
+import colors from "./colors.js";
+import brightnessOptions from "./brightnessOptions.js";
+import rgbOptions from "./rgbOptions.js";
 
-    super._init(0);
+import GLib from "gi://GLib";
 
-    let icon = new St.Icon({
-      //icon_name : 'security-low-symbolic',
-      gicon : Gio.icon_new_for_string( Me.dir.get_path() + '/icon.svg'  ),
-      style_class : 'system-status-icon',
-    });
+const Indicator = GObject.registerClass(
+  class Indicator extends PanelMenu.Button {
+    _init() {
+      const IconPath = GLib.Uri.resolve_relative(
+        import.meta.url,
+        "icon.svg",
+        GLib.UriFlags.NONE
+      );
+      console.log("Icon Path: ", IconPath);
+      super._init(0.0, _("My Indicator"));
 
-    this.add_child(icon);
-//RED
-    let red = new PopupMenu.PopupMenuItem('Red');
-    this.menu.addMenuItem(red);
-    red.connect('activate', () => {
-      check("red");
-    });
-//BLUE
-let blue = new PopupMenu.PopupMenuItem('Blue');
-this.menu.addMenuItem(blue);
-blue.connect('activate', () => {
-  check("blue");
-});
-//GREEN
-let green = new PopupMenu.PopupMenuItem('Green');
-this.menu.addMenuItem(green);
-green.connect('activate', () => {
-  check("green");
-});
-//yellow
-let yellow = new PopupMenu.PopupMenuItem('Yellow');
-this.menu.addMenuItem(yellow);
-yellow.connect('activate', () => {
-  check("yellow");
-});
-//gold
-let gold = new PopupMenu.PopupMenuItem('Gold');
-this.menu.addMenuItem(gold);
-gold.connect('activate', () => {
-  check("gold");
-});
-//cyan
-let cyan = new PopupMenu.PopupMenuItem('Cyan');
-this.menu.addMenuItem(cyan);
-cyan.connect('activate', () => {
-  check("cyan");
-});
-//PURPLE
-let magenta = new PopupMenu.PopupMenuItem('Purple');
-this.menu.addMenuItem(magenta);
-magenta.connect('activate', () => {
-  check("magenta");
-});
-//white
-let white = new PopupMenu.PopupMenuItem('White');
-    this.menu.addMenuItem(white);
-    white.connect('activate', () => {
-      check("white");
-    });
-//keyboard off
-let black = new PopupMenu.PopupMenuItem('Rgb off');
-this.menu.addMenuItem(black);
-black.connect('activate', () => {
-  check("black");
-});
+      let icon = new St.Icon({
+        gicon: Gio.icon_new_for_string(IconPath),
+        style_class: "system-status-icon",
+      });
 
+      this.add_child(icon);
 
+      // Create submenus and menus
 
+      const brightnessControl = new PopupMenu.PopupSubMenuMenuItem(
+        "Keyboard Brightness"
+      );
 
-    // sub menu
-    let subItem = new PopupMenu.PopupSubMenuMenuItem('Brightness');
-    this.menu.addMenuItem(subItem);
-    let one=new PopupMenu.PopupMenuItem('1');
-    let two=new PopupMenu.PopupMenuItem('2');
-    let three=new PopupMenu.PopupMenuItem('3');
-    subItem.menu.addMenuItem(one, 0);
-    one.connect('activate', () => {
-      bright("1");
-    });
-    subItem.menu.addMenuItem(two, 1);
-    subItem.menu.addMenuItem(three, 2);
-    two.connect('activate', () => {
-      bright("2");
-    });
-    three.connect('activate', () => {
-      bright("3");
-    });
+      const colorControl = new PopupMenu.PopupSubMenuMenuItem("Keyboard Color");
 
-    
+      const RBGControl = new PopupMenu.PopupSubMenuMenuItem("RGB Mode");
+
+      brightnessOptions.forEach(({ label, cmd }) => {
+        const option = new PopupMenu.PopupMenuItem(label);
+        option.connect("activate", () => {
+          this._setBrightness(cmd);
+        });
+        brightnessControl.menu.addMenuItem(option);
+      });
+
+      colors.forEach(({ label, color }) => {
+        const option = new PopupMenu.PopupMenuItem(label);
+        option.connect("activate", () => {
+          this._setColor(color);
+        });
+        colorControl.menu.addMenuItem(option);
+      });
+
+      rgbOptions.forEach(({ name, cmd }) => {
+        const option = new PopupMenu.PopupMenuItem(name, {
+          reactive: true,
+          can_focus: true,
+          style_class: "menu-item",
+        });
+
+        option.connect("activate", () => {
+          this._setRGBMode(cmd);
+        });
+        RBGControl.menu.addMenuItem(option);
+      });
+
+      this.menu.addMenuItem(brightnessControl);
+      this.menu.addMenuItem(RBGControl);
+      this.menu.addMenuItem(colorControl);
+    }
+
+    _setColor(color) {
+      GLib.spawn_command_line_async(`asusctl led-mode static -c ${color}`);
+    }
+
+    _setRGBMode(mode) {
+      GLib.spawn_command_line_async(`asusctl led-mode ${mode}`);
+    }
+
+    _setBrightness(value) {
+      GLib.spawn_command_line_async(`asusctl -k ${value}`);
+    }
   }
-});
-//------------------------------------------------------------------------------
+);
 
+export default class IndicatorExampleExtension extends Extension {
+  enable() {
+    this._indicator = new Indicator();
+    Main.panel.addToStatusArea(this.uuid, this._indicator);
+  }
 
-//-----------------------------------------------------------------------------
-function init() {
-}
-
-function enable() {
-  myPopup = new MyPopup();
-  Main.panel.addToStatusArea('myPopup', myPopup, 1);
-}
-
-function disable() {
-  myPopup.destroy();
-}
-function check(command){
-  GLib.spawn_command_line_sync("rogauracore "+command);
-
-}
-
-function bright(value){
-  GLib.spawn_command_line_sync("rogauracore brightness "+value);
+  disable() {
+    this._indicator.destroy();
+    this._indicator = null;
+  }
 }
